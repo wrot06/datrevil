@@ -316,6 +316,8 @@
         let width, height;
         let particles = [];
         let raindrops = [];
+        let lightnings = []; // store active lightning strikes
+        let screenFlashOpacity = 0;
 
         const config = {
             count: 70,
@@ -482,9 +484,74 @@
             }
         }
 
+        // Lightning Logic
+        class Lightning {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = 0;
+                this.segments = [];
+                this.alpha = 1;
+                this.flashTime = 0;
+                this.generateSegments(this.x, this.y, width / 2, height, 1);
+            }
+
+            generateSegments(startX, startY, targetX, targetY, depth) {
+                if (startY > height || depth > 20) return;
+
+                let length = Math.random() * 30 + 30;
+                let angle = (Math.PI / 2) + (Math.random() - 0.5) * 1.2; // mostly downward
+
+                // Add random jaggedness and sometimes branch
+                const nextX = startX + Math.cos(angle) * length;
+                const nextY = startY + Math.sin(angle) * length;
+
+                this.segments.push({ x1: startX, y1: startY, x2: nextX, y2: nextY, width: Math.max(0.5, 4 - depth * 0.2) });
+
+                // Recursive body
+                this.generateSegments(nextX, nextY, targetX, targetY, depth + 1);
+
+                // Chance to branch
+                if (Math.random() < 0.2) {
+                    this.generateSegments(nextX, nextY, targetX, targetY, depth + 1);
+                }
+            }
+
+            update() {
+                this.alpha -= 0.05; // Fade out quickly
+            }
+
+            draw() {
+                if (this.alpha <= 0) return;
+
+                rainCtx.save();
+                // Draw glow
+                rainCtx.shadowBlur = 15;
+                rainCtx.shadowColor = 'rgba(200, 220, 255, 0.8)';
+
+                rainCtx.beginPath();
+                this.segments.forEach(seg => {
+                    rainCtx.moveTo(seg.x1, seg.y1);
+                    rainCtx.lineTo(seg.x2, seg.y2);
+                });
+
+                rainCtx.strokeStyle = `rgba(255, 255, 255, ${this.alpha})`;
+                rainCtx.lineWidth = 1.5;
+                rainCtx.stroke();
+
+                // Thicker inner core
+                rainCtx.strokeStyle = `rgba(210, 230, 255, ${this.alpha})`;
+                rainCtx.lineWidth = 3;
+                rainCtx.shadowBlur = 0;
+                rainCtx.stroke();
+
+                rainCtx.restore();
+            }
+        }
+
         function init() {
             particles = [];
             raindrops = [];
+            lightnings = [];
             for (let i = 0; i < config.count; i++) {
                 particles.push(new SmokeParticle(true));
             }
@@ -501,6 +568,31 @@
             particles.forEach(p => {
                 p.update();
                 p.draw();
+            });
+
+            // Occasional Lightning trigger
+            // A lightning strike occurs rarely (~0.3% chance per frame = roughly every 5 seconds)
+            if (Math.random() < 0.003) {
+                // Spawn 1 to 3 lightning bolts simultaneously for a dramatic effect
+                let boltsCount = Math.floor(Math.random() * 3) + 1;
+                for (let i = 0; i < boltsCount; i++) {
+                    lightnings.push(new Lightning());
+                }
+                screenFlashOpacity = 0.5; // Trigger bright flash
+            }
+            // Thunder flash fade
+            if (screenFlashOpacity > 0) {
+                rainCtx.fillStyle = `rgba(240, 248, 255, ${screenFlashOpacity})`;
+                rainCtx.fillRect(0, 0, width, height);
+                // Non-linear fade to represent flickering
+                screenFlashOpacity -= Math.random() * 0.08 + 0.02;
+            }
+
+            // Draw Lightning Bolts
+            lightnings.forEach((lt, index) => {
+                lt.update();
+                lt.draw();
+                if (lt.alpha <= 0) lightnings.splice(index, 1);
             });
 
             // Update Eyes Tracking
