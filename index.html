@@ -48,6 +48,18 @@
             pointer-events: none;
         }
 
+        /* Rain Foreground Layer */
+        #rain-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            /* In front of everything including the logo */
+            pointer-events: none;
+        }
+
         /* Logo Container */
         .logo-container {
             position: relative;
@@ -266,6 +278,7 @@
 
     <canvas id="smoke-canvas"></canvas>
     <div class="overlay"></div>
+    <canvas id="rain-canvas"></canvas>
 
     <div class="logo-container">
         <div class="logo-floater">
@@ -297,14 +310,19 @@
         const canvas = document.getElementById('smoke-canvas');
         const ctx = canvas.getContext('2d');
 
+        const rainCanvas = document.getElementById('rain-canvas');
+        const rainCtx = rainCanvas.getContext('2d');
+
         let width, height;
         let particles = [];
+        let raindrops = [];
 
         const config = {
             count: 70,
             smokeColor: 'rgba(200, 200, 200, ',
             smokeMinSize: 80,
-            smokeMaxSize: 250
+            smokeMaxSize: 250,
+            rainCount: 200 // Number of rain drop particles
         };
 
         // Eye tracking logic
@@ -373,8 +391,8 @@
         }
 
         function resize() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
+            width = canvas.width = rainCanvas.width = window.innerWidth;
+            height = canvas.height = rainCanvas.height = window.innerHeight;
         }
         window.addEventListener('resize', resize);
         resize();
@@ -429,15 +447,55 @@
             }
         }
 
+        // Rain Particle Logic
+        class RainParticle {
+            constructor() {
+                this.reset(true);
+            }
+
+            reset(initial = false) {
+                this.x = Math.random() * width;
+                this.y = initial ? Math.random() * height : -10 - Math.random() * 100;
+                this.length = Math.random() * 20 + 20; // Length of rain streak
+                this.vy = Math.random() * 10 + 15; // Vertical fall speed
+                this.vx = Math.random() * 2 - 1; // Slight wind deviation
+                this.alpha = Math.random() * 0.3 + 0.1; // Faint white/blueish tint
+                this.width = Math.random() * 1 + 0.5;
+            }
+
+            update() {
+                this.y += this.vy;
+                this.x += this.vx;
+                if (this.y > height + this.length) {
+                    this.reset();
+                }
+            }
+
+            draw() {
+                rainCtx.beginPath();
+                rainCtx.moveTo(this.x, this.y);
+                rainCtx.lineTo(this.x + this.vx, this.y + this.length);
+                rainCtx.strokeStyle = `rgba(220, 230, 255, ${this.alpha})`;
+                rainCtx.lineWidth = this.width;
+                rainCtx.lineCap = 'round';
+                rainCtx.stroke();
+            }
+        }
+
         function init() {
             particles = [];
+            raindrops = [];
             for (let i = 0; i < config.count; i++) {
                 particles.push(new SmokeParticle(true));
+            }
+            for (let i = 0; i < config.rainCount; i++) {
+                raindrops.push(new RainParticle(true));
             }
         }
 
         function animate() {
             ctx.clearRect(0, 0, width, height);
+            rainCtx.clearRect(0, 0, width, height);
 
             // 1. Draw standard smoke background
             particles.forEach(p => {
@@ -447,6 +505,12 @@
 
             // Update Eyes Tracking
             updateEyes();
+
+            // Rain Rendering foreground
+            raindrops.forEach(drop => {
+                drop.update();
+                drop.draw();
+            });
 
             requestAnimationFrame(animate);
         }
