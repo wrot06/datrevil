@@ -17,34 +17,23 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #000;
+            background-color: #050505;
             display: flex;
             justify-content: center;
             align-items: center;
             font-family: 'Courier New', Courier, monospace;
         }
 
-        /* Video Background Layer */
-        #bg-video {
+        /* Canvas Background Layer */
+        #smoke-canvas {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            min-width: 100%;
-            min-height: 100%;
-            width: auto;
-            height: auto;
-            transform: translate(-50%, -50%);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             z-index: 1;
-            object-fit: cover;
-            filter: contrast(1.1) brightness(0.7);
-            /* Video Fade Transition */
-            transition: opacity 1s ease-in-out;
-            opacity: 0;
-            /* Starts hidden (black) */
-        }
-
-        #bg-video.visible {
-            opacity: 1;
+            /* Filter to enhance the smoke softness and contrast */
+            filter: blur(4px) contrast(1.5) brightness(0.8);
         }
 
         /* Vignette Overlay Layer */
@@ -54,15 +43,27 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: radial-gradient(circle, rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, 0.8) 100%);
-            z-index: 2;
+            background: radial-gradient(circle at center, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.85) 90%);
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        /* Rain Foreground Layer */
+        #rain-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            /* In front of everything including the logo */
             pointer-events: none;
         }
 
         /* Logo Container */
         .logo-container {
             position: relative;
-            z-index: 3;
+            z-index: 4;
             width: 100%;
             height: 100%;
             display: flex;
@@ -70,29 +71,31 @@
             align-items: center;
         }
 
-        /* Wrapper for Continuous Float Animation */
+        /* Wrapper for Continuous Float */
         .logo-floater {
+            position: relative;
+            display: inline-block;
             animation: logoFloat 6s ease-in-out infinite;
             will-change: transform;
         }
 
-        /* Logo Image - Handles Entrance/Exit Transitions */
+        /* Logo Image */
         .logo-inner {
             max-width: 600px;
             width: 80vw;
             height: auto;
             opacity: 0;
             transform: scale(0.92);
-            filter: blur(8px) drop-shadow(0 0 15px rgba(0, 0, 0, 0.5));
-            transition: opacity 2s ease-in-out, transform 2.5s cubic-bezier(0.2, 0.8, 0.2, 1), filter 2s ease-in-out;
-            will-change: opacity, transform, filter;
+            filter: blur(8px) drop-shadow(0 0 20px rgba(0, 0, 0, 0.6));
+            animation: logoEnter 3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards 0.5s;
         }
 
-        /* Active state (Visible) */
-        .logo-inner.active {
-            opacity: 1;
-            transform: scale(1);
-            filter: blur(0) drop-shadow(0 0 15px rgba(0, 0, 0, 0.5));
+        @keyframes logoEnter {
+            to {
+                opacity: 1;
+                transform: scale(1);
+                filter: blur(0) drop-shadow(0 0 20px rgba(0, 0, 0, 0.6));
+            }
         }
 
         @keyframes logoFloat {
@@ -106,92 +109,506 @@
                 transform: translateY(-12px);
             }
         }
+
+        /* Eyes Styles */
+        .eyes-wrapper {
+            position: absolute;
+            z-index: -1;
+            /* Adjust top/left to center over the skull eye sockets */
+            top: 68%;
+            left: 49%;
+            transform: translate(-50%, -50%) scale(0.16);
+            /* start slightly smaller */
+            opacity: 0;
+            filter: blur(8px) drop-shadow(0 0 20px rgba(0, 0, 0, 0.6));
+            animation: eyesEnter 3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards 0.5s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 220px;
+            /* Space between the two eyes */
+            pointer-events: none;
+        }
+
+        @keyframes eyesEnter {
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(0.18);
+                filter: blur(0) drop-shadow(0 0 20px rgba(0, 0, 0, 0.6));
+            }
+        }
+
+        /* Also applying scale per eye if needed, but wrapper scale handles it cleanly */
+        .eye-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+            overflow: hidden;
+            pointer-events: auto;
+            /* Pronounced rotation for an angry look */
+            transform: rotate(30deg);
+        }
+
+        .eye-container:nth-child(2) {
+            transform: rotate(-30deg);
+        }
+
+        .eye {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+            width: 160px;
+            height: 160px;
+            border-radius: 160px 0;
+            background: #ab1f1f;
+            /* Reddish base to match the fiery skull */
+            overflow: hidden;
+            transition: all 0.5s ease-in-out;
+            box-shadow: inset 0 0 20px #000;
+        }
+
+        .eye .ball {
+            position: absolute;
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            background: #ff5500;
+            /* Bright fiery orange base for cat eye */
+            top: 25px;
+            left: 25px;
+            transform: rotate(-45deg);
+            /* Default state to keep slit straight */
+            box-shadow: inset 0 0 25px #4a0000;
+            /* Deep red edges rimming the iris */
+        }
+
+        .eye .ball .iris {
+            position: absolute;
+            width: 12px;
+            height: 60px;
+            /* Tall vertical slit pupil */
+            border-radius: 50%;
+            background: #000000;
+            /* Pitch black pupil */
+            top: 25px;
+            left: 49px;
+            /* Center horizontally (110 - 12)/2 = 49 */
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.8);
+            /* Eerie glowing red edge along slit */
+        }
+
+        .lid-top {
+            position: absolute;
+            z-index: 2;
+            width: 240px;
+            height: 106px;
+            top: 125px;
+            left: 80px;
+            background: #050505;
+            /* Black shadow overlay */
+            transform: translateY(-60px);
+            animation: lid-top 5s ease-in-out infinite;
+            border-radius: 0 0 20px 20px;
+        }
+
+        .lid-bottom {
+            position: absolute;
+            z-index: 2;
+            width: 240px;
+            height: 106px;
+            bottom: 125px;
+            left: 80px;
+            background: #050505;
+            /* Black shadow overlay */
+            transform: rotate(180deg) translateY(-60px);
+            animation: lid-bottom 5s ease-in-out infinite;
+            border-radius: 0 0 20px 20px;
+        }
+
+        .eye-container:hover .lid-top {
+            transform: translateY(15px);
+        }
+
+        .eye-container:hover .lid-bottom {
+            transform: rotate(180deg) translateY(15px);
+        }
+
+        @keyframes lid-top {
+
+            0%,
+            20%,
+            26%,
+            60%,
+            66%,
+            100% {
+                transform: translateY(-70px);
+                /* Fully open */
+            }
+
+            23%,
+            63% {
+                transform: translateY(20px);
+                /* Smooth, full deliberate blink */
+            }
+        }
+
+        @keyframes lid-bottom {
+
+            0%,
+            20%,
+            26%,
+            60%,
+            66%,
+            100% {
+                transform: rotate(180deg) translateY(-70px);
+                /* Fully open */
+            }
+
+            23%,
+            63% {
+                transform: rotate(180deg) translateY(20px);
+                /* Smooth, full deliberate blink */
+            }
+        }
     </style>
 </head>
 
 <body>
 
-    <!-- Background Video -->
-    <video autoplay muted loop playsinline id="bg-video">
-        <source src="humo.mp4" type="video/mp4">
-        Your browser does not support the video tag.
-    </video>
-
-    <!-- Overlay -->
+    <canvas id="smoke-canvas"></canvas>
     <div class="overlay"></div>
+    <canvas id="rain-canvas"></canvas>
 
-    <!-- Main Content -->
     <div class="logo-container">
         <div class="logo-floater">
+            <div class="eyes-wrapper">
+                <div class="eye-container">
+                    <div class="eye">
+                        <div class="ball">
+                            <div class="iris"></div>
+                        </div>
+                    </div>
+                    <div class="lid-top"></div>
+                    <div class="lid-bottom"></div>
+                </div>
+                <div class="eye-container">
+                    <div class="eye">
+                        <div class="ball">
+                            <div class="iris"></div>
+                        </div>
+                    </div>
+                    <div class="lid-top"></div>
+                    <div class="lid-bottom"></div>
+                </div>
+            </div>
             <img src="logo.png" alt="Logo" class="logo-inner" id="logo">
         </div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const video = document.getElementById('bg-video');
-            const logo = document.getElementById('logo');
+        const canvas = document.getElementById('smoke-canvas');
+        const ctx = canvas.getContext('2d');
 
-            // Timing Configuration (seconds)
-            const logoFadeOutStart = 2.5; // Seconds before end to start fading out logo
-            const logoFadeInStart = 0.5;  // Seconds after start to fade in logo
-            const videoFadeDuration = 1.0; // Duration of video fade (matches CSS transition)
+        const rainCanvas = document.getElementById('rain-canvas');
+        const rainCtx = rainCanvas.getContext('2d');
 
-            if (video && logo) {
-                video.muted = true;
+        let width, height;
+        let particles = [];
+        let raindrops = [];
+        let lightnings = []; // store active lightning strikes
+        let screenFlashOpacity = 0;
 
-                // Ensure metadata allows duration access
-                video.addEventListener('loadedmetadata', () => {
-                    console.log("Video loaded, duration:", video.duration);
-                });
+        const config = {
+            count: 70,
+            smokeColor: 'rgba(200, 200, 200, ',
+            smokeMinSize: 80,
+            smokeMaxSize: 250,
+            rainCount: 200 // Number of rain drop particles
+        };
 
-                video.addEventListener('timeupdate', () => {
-                    const duration = video.duration;
-                    const currentTime = video.currentTime;
+        // Eye tracking logic
+        const eyeContainers = document.querySelectorAll('.eye-container');
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 2;
+        let isMouseActive = false;
+        let idleTimeout;
 
-                    if (!duration) return;
+        const eyeCurrent = [{ x: 0, y: 0 }, { x: 0, y: 0 }];
 
-                    const timeLeft = duration - currentTime;
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            isMouseActive = true;
+            clearTimeout(idleTimeout);
+            idleTimeout = setTimeout(() => { isMouseActive = false; }, 2000);
+        });
 
-                    // --- Logo Sync Logic ---
-                    const logoIsNearEnd = timeLeft <= logoFadeOutStart;
-                    const logoIsAfterStart = currentTime >= logoFadeInStart;
+        function updateEyes() {
+            const time = Date.now();
+            eyeContainers.forEach((container, index) => {
+                const ball = container.querySelector('.ball');
+                if (!ball) return;
 
-                    if (logoIsAfterStart && !logoIsNearEnd) {
-                        logo.classList.add('active');
-                    } else {
-                        logo.classList.remove('active');
-                    }
+                const rect = container.getBoundingClientRect();
+                const eyeCenterX = rect.left + rect.width / 2;
+                const eyeCenterY = rect.top + rect.height / 2;
 
-                    // --- Video Fade Loop Logic ---
-                    const videoIsNearStart = currentTime < 0.2; // Buffer for start
-                    const videoIsNearEnd = timeLeft <= videoFadeDuration;
+                let targetX = 0;
+                let targetY = 0;
 
-                    // We want video visible in the middle
-                    if (!videoIsNearEnd && !videoIsNearStart) {
-                        video.classList.add('visible');
-                    }
-                    // Special case: Ensure it starts visible if already playing past fade point? 
-                    // Actually, simple condition: if within [0, Fade] or [Duration-Fade, Duration], hide.
-                    // But "hide" means remove 'visible' class.
+                if (isMouseActive) {
+                    let dx = mouseX - eyeCenterX;
+                    let dy = mouseY - eyeCenterY;
+                    const distance = Math.hypot(dx, dy);
+                    const maxTranslate = 20; // maximum movement of the pupil
+                    const followRadius = Math.min(maxTranslate, distance / 15);
+                    const angle = Math.atan2(dy, dx);
+                    targetX = Math.cos(angle) * followRadius;
+                    targetY = Math.sin(angle) * followRadius;
+                } else {
+                    // Look around slowly when idle
+                    const phase = time / 1500 + index * 0.5; // slight time offset per eye
+                    targetX = Math.cos(phase) * 12;
+                    targetY = Math.sin(phase * 1.3) * 12;
+                }
 
-                    if (currentTime > 0.1 && timeLeft > videoFadeDuration) {
-                        video.classList.add('visible');
-                    } else {
-                        video.classList.remove('visible');
-                    }
-                });
+                // Smooth interpolation for the pupil position
+                eyeCurrent[index].x += (targetX - eyeCurrent[index].x) * 0.08;
+                eyeCurrent[index].y += (targetY - eyeCurrent[index].y) * 0.08;
 
-                // Play handling
-                const playPromise = video.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        console.log("Autoplay prevented:", error);
-                        document.addEventListener('click', () => video.play(), { once: true });
-                    });
+                // Adjust the translation vector to account for the parent elements' rotations
+                const containerRotation = index === 0 ? 30 : -30;
+                const eyeRotation = 45;
+                const totalRotationRad = (containerRotation + eyeRotation) * Math.PI / 180;
+
+                // Rotate screen-space translation into local unrotated space offset
+                const localX = eyeCurrent[index].x * Math.cos(-totalRotationRad) - eyeCurrent[index].y * Math.sin(-totalRotationRad);
+                const localY = eyeCurrent[index].x * Math.sin(-totalRotationRad) + eyeCurrent[index].y * Math.cos(-totalRotationRad);
+
+                // Apply transformation (counter-rotate entirely to keep the slit perfectly vertical despite the new eye container angles)
+                const counterRotation = -(containerRotation + eyeRotation);
+                ball.style.transform = `translate(${localX}px, ${localY}px) rotate(${counterRotation}deg)`;
+            });
+        }
+
+        function resize() {
+            width = canvas.width = rainCanvas.width = window.innerWidth;
+            height = canvas.height = rainCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Standard Smoke Puff
+        class SmokeParticle {
+            constructor(initial = false) {
+                this.reset(initial);
+            }
+
+            reset(initial = false) {
+                this.x = Math.random() * width;
+                this.y = initial ? Math.random() * height : height + 150;
+
+                this.size = Math.random() * (config.smokeMaxSize - config.smokeMinSize) + config.smokeMinSize;
+                this.vx = (Math.random() - 0.5) * 0.2;
+                this.vy = -(Math.random() * 0.5 + 0.5);
+
+                this.life = 0;
+                this.maxLife = Math.random() * 200 + 300;
+                this.alpha = 0;
+                this.maxAlpha = Math.random() * 0.15 + 0.05;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life++;
+                this.size += 0.15;
+
+                const fadeOutDuration = 100;
+                if (this.life < 100) {
+                    this.alpha = (this.life / 100) * this.maxAlpha;
+                } else if (this.life > this.maxLife - fadeOutDuration) {
+                    this.alpha = ((this.maxLife - this.life) / fadeOutDuration) * this.maxAlpha;
+                }
+
+                if (this.life >= this.maxLife || (this.y < -this.size)) {
+                    this.reset();
                 }
             }
-        });
+
+            draw() {
+                ctx.beginPath();
+                const g = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
+                g.addColorStop(0, config.smokeColor + this.alpha + ')');
+                g.addColorStop(0.5, config.smokeColor + (this.alpha * 0.5) + ')');
+                g.addColorStop(1, config.smokeColor + '0)');
+                ctx.fillStyle = g;
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Rain Particle Logic
+        class RainParticle {
+            constructor() {
+                this.reset(true);
+            }
+
+            reset(initial = false) {
+                this.x = Math.random() * width;
+                this.y = initial ? Math.random() * height : -10 - Math.random() * 100;
+                this.length = Math.random() * 20 + 20; // Length of rain streak
+                this.vy = Math.random() * 10 + 15; // Vertical fall speed
+                this.vx = Math.random() * 2 - 1; // Slight wind deviation
+                this.alpha = Math.random() * 0.3 + 0.1; // Faint white/blueish tint
+                this.width = Math.random() * 1 + 0.5;
+            }
+
+            update() {
+                this.y += this.vy;
+                this.x += this.vx;
+                if (this.y > height + this.length) {
+                    this.reset();
+                }
+            }
+
+            draw() {
+                rainCtx.beginPath();
+                rainCtx.moveTo(this.x, this.y);
+                rainCtx.lineTo(this.x + this.vx, this.y + this.length);
+                rainCtx.strokeStyle = `rgba(220, 230, 255, ${this.alpha})`;
+                rainCtx.lineWidth = this.width;
+                rainCtx.lineCap = 'round';
+                rainCtx.stroke();
+            }
+        }
+
+        // Lightning Logic
+        class Lightning {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = 0;
+                this.segments = [];
+                this.alpha = 1;
+                this.flashTime = 0;
+                this.generateSegments(this.x, this.y, width / 2, height, 1);
+            }
+
+            generateSegments(startX, startY, targetX, targetY, depth) {
+                if (startY > height || depth > 20) return;
+
+                let length = Math.random() * 30 + 30;
+                let angle = (Math.PI / 2) + (Math.random() - 0.5) * 1.2; // mostly downward
+
+                // Add random jaggedness and sometimes branch
+                const nextX = startX + Math.cos(angle) * length;
+                const nextY = startY + Math.sin(angle) * length;
+
+                this.segments.push({ x1: startX, y1: startY, x2: nextX, y2: nextY, width: Math.max(0.5, 4 - depth * 0.2) });
+
+                // Recursive body
+                this.generateSegments(nextX, nextY, targetX, targetY, depth + 1);
+
+                // Chance to branch
+                if (Math.random() < 0.2) {
+                    this.generateSegments(nextX, nextY, targetX, targetY, depth + 1);
+                }
+            }
+
+            update() {
+                this.alpha -= 0.05; // Fade out quickly
+            }
+
+            draw() {
+                if (this.alpha <= 0) return;
+
+                rainCtx.save();
+                // Draw glow
+                rainCtx.shadowBlur = 15;
+                rainCtx.shadowColor = 'rgba(200, 220, 255, 0.8)';
+
+                rainCtx.beginPath();
+                this.segments.forEach(seg => {
+                    rainCtx.moveTo(seg.x1, seg.y1);
+                    rainCtx.lineTo(seg.x2, seg.y2);
+                });
+
+                rainCtx.strokeStyle = `rgba(255, 255, 255, ${this.alpha})`;
+                rainCtx.lineWidth = 1.5;
+                rainCtx.stroke();
+
+                // Thicker inner core
+                rainCtx.strokeStyle = `rgba(210, 230, 255, ${this.alpha})`;
+                rainCtx.lineWidth = 3;
+                rainCtx.shadowBlur = 0;
+                rainCtx.stroke();
+
+                rainCtx.restore();
+            }
+        }
+
+        function init() {
+            particles = [];
+            raindrops = [];
+            lightnings = [];
+            for (let i = 0; i < config.count; i++) {
+                particles.push(new SmokeParticle(true));
+            }
+            for (let i = 0; i < config.rainCount; i++) {
+                raindrops.push(new RainParticle(true));
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            rainCtx.clearRect(0, 0, width, height);
+
+            // 1. Draw standard smoke background
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            // Occasional Lightning trigger
+            // A lightning strike occurs rarely (~0.3% chance per frame = roughly every 5 seconds)
+            if (Math.random() < 0.003) {
+                // Spawn 1 to 3 lightning bolts simultaneously for a dramatic effect
+                let boltsCount = Math.floor(Math.random() * 3) + 1;
+                for (let i = 0; i < boltsCount; i++) {
+                    lightnings.push(new Lightning());
+                }
+                screenFlashOpacity = 0.5; // Trigger bright flash
+            }
+            // Thunder flash fade
+            if (screenFlashOpacity > 0) {
+                rainCtx.fillStyle = `rgba(240, 248, 255, ${screenFlashOpacity})`;
+                rainCtx.fillRect(0, 0, width, height);
+                // Non-linear fade to represent flickering
+                screenFlashOpacity -= Math.random() * 0.08 + 0.02;
+            }
+
+            // Draw Lightning Bolts
+            lightnings.forEach((lt, index) => {
+                lt.update();
+                lt.draw();
+                if (lt.alpha <= 0) lightnings.splice(index, 1);
+            });
+
+            // Update Eyes Tracking
+            updateEyes();
+
+            // Rain Rendering foreground
+            raindrops.forEach(drop => {
+                drop.update();
+                drop.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        init();
+        animate();
     </script>
 </body>
 
