@@ -26,7 +26,7 @@
     <meta name="twitter:card" content="summary">
 
     <!-- Precarga de recursos pesados para que estén listos antes de que comience la animación -->
-    <link rel="preload" href="ciudad.webp" as="image">
+    <link rel="preload" href="dark_bg.png" as="image">
     <link rel="preload" href="logo.webp" as="image">
     <style>
         * {
@@ -47,36 +47,36 @@
             font-family: 'Metal Mania', cursive;
         }
 
-        /* Capa de fondo — ciudad destruida */
-        .city-bg {
+        /* Capa de fondo — abismo infernal */
+        .abyss-bg {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             z-index: 0;
-            background-image: url('ciudad.webp');
+            background-image: url('dark_bg.png');
             background-size: cover;
-            background-position: bottom center;
-            filter: brightness(0.8) contrast(1.3) saturate(0.35) sepia(0.25);
-            /* Desvanece el área blanca del cielo hacia el fondo oscuro */
-            -webkit-mask-image: linear-gradient(to bottom,
-                    transparent 0%,
-                    rgba(0, 0, 0, 0.15) 15%,
-                    rgba(0, 0, 0, 0.7) 30%,
-                    black 50%);
-            mask-image: linear-gradient(to bottom,
-                    transparent 0%,
-                    rgba(0, 0, 0, 0.15) 15%,
-                    rgba(0, 0, 0, 0.7) 30%,
-                    black 50%);
-            /* Comienza invisible para un fundido suave al cargar */
+            background-position: center bottom;
+            filter: brightness(0.65) contrast(1.4) saturate(1.2);
             opacity: 0;
-            transition: opacity 2.5s ease-out;
+            transition: opacity 3s ease-out;
+            animation: kenBurns 40s linear infinite alternate;
+            will-change: transform;
         }
 
-        .city-bg.loaded {
+        .abyss-bg.loaded {
             opacity: 1;
+        }
+
+        @keyframes kenBurns {
+            0% {
+                transform: scale(1.0);
+            }
+
+            100% {
+                transform: scale(1.15);
+            }
         }
 
         /* Capa de viñeta superpuesta */
@@ -86,13 +86,13 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: radial-gradient(circle at center, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.85) 90%);
+            background: radial-gradient(circle at center, rgba(10, 0, 0, 0.1) 20%, rgba(5, 0, 0, 0.95) 100%);
             z-index: 3;
             pointer-events: none;
         }
 
-        /* Capa de lluvia al frente */
-        #rain-canvas {
+        /* Capa de brasas al frente */
+        #embers-canvas {
             position: absolute;
             top: 0;
             left: 0;
@@ -101,6 +101,8 @@
             z-index: 5;
             pointer-events: none;
             will-change: transform;
+            opacity: 0.85;
+            mix-blend-mode: screen;
             /* Capa del compositor GPU */
         }
 
@@ -402,9 +404,9 @@
 
 <body>
 
-    <div class="city-bg"></div>
+    <div class="abyss-bg"></div>
     <div class="overlay"></div>
-    <canvas id="rain-canvas"></canvas>
+    <canvas id="embers-canvas"></canvas>
 
     <div class="logo-container">
         <div class="logo-floater">
@@ -433,19 +435,16 @@
     </div>
 
     <script>
-        const rainCanvas = document.getElementById('rain-canvas');
-        const rainCtx = rainCanvas.getContext('2d');
+        const embersCanvas = document.getElementById('embers-canvas');
+        const embersCtx = embersCanvas.getContext('2d');
 
         let width, height;
-        let raindrops = [];
-        let lightnings = [];
-        let screenFlashOpacity = 0;
+        let embersParticles = [];
         let frameCount = 0;
         let lastFrameTime = 0;      // límite de 30fps
-        let pageStartTime = Date.now(); // para controlar el retraso del rayo
         const FRAME_MS = 1000 / 30; // objetivo: 30fps
 
-        const rainCount = 80;       // era 130
+        const embersCount = 80;    // Cantidad de brasas flotantes reducida para rendimiento
 
         // Lógica de seguimiento de ojos
         const eyeContainers = document.querySelectorAll('.eye-container');
@@ -541,264 +540,87 @@
         }
 
         function resize() {
-            width = rainCanvas.width = window.innerWidth;
-            height = rainCanvas.height = window.innerHeight;
-            // Recalcula posiciones de ojos tras cambios de disposición
+            width = embersCanvas.width = window.innerWidth;
+            height = embersCanvas.height = window.innerHeight;
             cacheEyeRects();
         }
         window.addEventListener('resize', resize);
         resize();
 
-        // Lógica de partículas de lluvia
-        class RainParticle {
-            constructor() {
-                this.reset(true);
+        // Lógica de brasas (embers) flotantes
+        class EmberParticle {
+            constructor(initial = false) {
+                this.reset(initial);
             }
 
             reset(initial = false) {
                 this.x = Math.random() * width;
-                this.y = initial ? Math.random() * height : -10 - Math.random() * 100;
-                this.length = Math.random() * 20 + 20; // longitud de la gota
-                this.vy = Math.random() * 10 + 15; // velocidad de caída vertical
-                this.vx = Math.random() * 2 - 1; // leve desviación por viento
-                this.alpha = Math.random() * 0.3 + 0.1; // tinte blanco/azulado tenue
-                this.width = Math.random() * 1 + 0.5;
+                this.y = initial ? Math.random() * height : height + 10 + Math.random() * 50;
+                this.size = Math.random() * 2 + 0.5;
+                this.vy = -(Math.random() * 1.5 + 0.5);
+                this.vx = (Math.random() - 0.5) * 1.5;
+                this.alpha = Math.random() * 0.8 + 0.2;
+                this.wobblePhase = Math.random() * Math.PI * 2;
+                this.wobbleSpeed = Math.random() * 0.05 + 0.02;
+                const hue = Math.floor(Math.random() * 30) + 10;
+                this.color = `hsla(${hue}, 100%, 60%, ${this.alpha})`;
             }
 
-            // Lluvia — solo actualizar (sin dibujar aquí; procesado en lote en drawRain)
             update() {
                 this.y += this.vy;
-                this.x += this.vx;
-                if (this.y > height + this.length) this.reset();
-            }
-        }
+                this.wobblePhase += this.wobbleSpeed;
+                this.x += Math.sin(this.wobblePhase) * 0.8 + this.vx;
+                this.size -= 0.005;
 
-        // Dibujo de lluvia en lote: agrupa gotas en 2 cubetas de ancho → solo 2 llamadas a stroke()
-        function drawRain() {
-            // Cubeta 0: delgada (ancho < 1), Cubeta 1: gruesa (ancho >= 1)
-            rainCtx.lineCap = 'round';
-            [0, 1].forEach(bucket => {
-                rainCtx.beginPath();
-                raindrops.forEach(d => {
-                    if ((bucket === 0) !== (d.width < 1)) return;
-                    rainCtx.moveTo(d.x, d.y);
-                    rainCtx.lineTo(d.x + d.vx, d.y + d.length);
-                });
-                const w = bucket === 0 ? 0.6 : 1.3;
-                rainCtx.lineWidth = w;
-                rainCtx.strokeStyle = `rgba(220, 230, 255, 0.18)`;
-                rainCtx.stroke();
-            });
-        }
-
-        // Lógica de rayos
-        class Lightning {
-            constructor() {
-                // Origen horizontal aleatorio (parte superior de la pantalla)
-                this.originX = Math.random() * width;
-                this.done = false;
-                this.bolts = []; // rayo principal + todas las ramas
-
-                // Re-impacto multipulso: el rayo suele volver 1-3 veces
-                this.pulses = [];
-                const count = Math.floor(Math.random() * 3) + 1;
-                let delay = 0;
-                for (let i = 0; i < count; i++) {
-                    this.pulses.push({ frame: delay, fired: false });
-                    delay += Math.floor(Math.random() * 5) + 3;
+                if (this.y < -10 || this.size <= 0) {
+                    this.reset();
                 }
-                this.totalLife = delay + 12;
-                this.life = 0;
-                this.alpha = 1;
-
-                // Construye la geometría una sola vez — la misma ruta se reutiliza en cada pulso
-                this._buildMain();
-            }
-
-            // ── Desplazamiento de punto medio: 6 pasadas → irregularidad fractal extrema ──
-            _displace(pts, spread) {
-                const out = [];
-                for (let i = 0; i < pts.length - 1; i++) {
-                    const a = pts[i], b = pts[i + 1];
-                    // Jitter solo horizontal — mantiene el rayo yendo hacia abajo
-                    const mx = (a.x + b.x) * 0.5 + (Math.random() - 0.5) * spread;
-                    const my = (a.y + b.y) * 0.5 + (Math.random() - 0.35) * spread * 0.12;
-                    out.push(a, { x: mx, y: my });
-                }
-                out.push(pts[pts.length - 1]);
-                return out;
-            }
-
-            _makePath(x1, y1, x2, y2, roughness) {
-                let pts = [{ x: x1, y: y1 }, { x: x2, y: y2 }];
-                for (let p = 0; p < 6; p++) {
-                    pts = this._displace(pts, roughness / (p * 0.6 + 1));
-                }
-                return pts;
-            }
-
-            _buildMain() {
-                const ex = this.originX + (Math.random() - 0.5) * width * 0.35;
-                const ey = height * (0.6 + Math.random() * 0.5);
-                const mainPts = this._makePath(this.originX, 0, ex, ey, width * 0.16);
-                this.bolts.push({ pts: mainPts, depth: 0 });
-                this._addBranches(mainPts, 1);
-            }
-
-            _addBranches(parentPts, depth) {
-                if (depth > 3) return;
-                // Más ramas cerca de la raíz, menos en las hojas
-                const n = depth === 1 ? Math.floor(Math.random() * 4) + 3
-                    : depth === 2 ? Math.floor(Math.random() * 3) + 1
-                        : 1;
-
-                for (let b = 0; b < n; b++) {
-                    if (depth > 1 && Math.random() > 0.6) continue;
-
-                    // Punto de bifurcación: preferir la parte media-superior del padre
-                    const lo = Math.floor(parentPts.length * 0.15);
-                    const hi = Math.floor(parentPts.length * 0.75);
-                    const idx = lo + Math.floor(Math.random() * (hi - lo));
-                    const sp = parentPts[idx];
-                    if (!sp) continue;
-
-                    // La rama viaja hacia abajo con desviación angular
-                    const devAngle = (Math.random() - 0.5) * 2.2;
-                    const len = (height * 0.35) / depth * (0.25 + Math.random() * 0.75);
-                    const angle = Math.PI / 2 + devAngle;
-                    const bx = sp.x + Math.cos(angle) * len;
-                    const by = sp.y + Math.sin(angle) * len;
-                    const roughness = (width * 0.09) / depth;
-
-                    const bPts = this._makePath(sp.x, sp.y, bx, by, roughness);
-                    this.bolts.push({ pts: bPts, depth });
-
-                    // Recursión con 50% de probabilidad
-                    if (Math.random() < 0.5) this._addBranches(bPts, depth + 1);
-                }
-            }
-
-            update() {
-                this.life++;
-                if (this.life > this.totalLife) { this.done = true; return; }
-
-                // Verifica si un pulso dispara en este fotograma
-                let pulseFired = false;
-                for (const p of this.pulses) {
-                    if (!p.fired && this.life >= p.frame) {
-                        p.fired = true;
-                        pulseFired = true;
-                    }
-                }
-
-                if (pulseFired) {
-                    this.alpha = 1;
-                } else {
-                    // Decaimiento estocástico rápido entre pulsos
-                    this.alpha -= 0.14 + Math.random() * 0.14;
-                    if (this.alpha < 0) this.alpha = 0;
-                }
-            }
-
-            _strokePath(pts, lineWidth, color) {
-                if (pts.length < 2) return;
-                rainCtx.beginPath();
-                rainCtx.moveTo(pts[0].x, pts[0].y);
-                for (let i = 1; i < pts.length; i++) rainCtx.lineTo(pts[i].x, pts[i].y);
-                rainCtx.lineWidth = lineWidth;
-                rainCtx.strokeStyle = color;
-                rainCtx.stroke();
-            }
-
-            _drawBolt(bolt) {
-                const { pts, depth } = bolt;
-                const isMain = depth === 0;
-                const isSub = depth >= 2;
-                const isDeep = depth >= 3;
-                const a = this.alpha * (isMain ? 1 : isSub ? 0.55 : 0.78);
-                if (a <= 0.01) return;
-
-                // Los anchos de trazo centrales se reducen fuertemente con la profundidad
-                const coreW = isMain ? 2.8 : isSub ? 0.7 : 1.4;
-
-                // ── Capa 1: dispersión atmosférica difusa y ancha ──
-                rainCtx.shadowBlur = 30;
-                rainCtx.shadowColor = `rgba(90, 140, 255, ${a * 0.5})`;
-                rainCtx.lineJoin = 'round';
-                rainCtx.lineCap = 'round';
-                this._strokePath(pts, coreW * 18, `rgba(80, 120, 255, ${a * (isDeep ? 0 : 0.08)})`);
-
-                // ── Capa 2: brillo medio azul-violeta ──
-                rainCtx.shadowBlur = 16;
-                rainCtx.shadowColor = `rgba(160, 190, 255, 0.9)`;
-                this._strokePath(pts, coreW * 7, `rgba(140, 175, 255, ${a * (isDeep ? 0.2 : 0.38)})`);
-
-                // ── Capa 3: halo interior casi blanco ──
-                rainCtx.shadowBlur = 10;
-                rainCtx.shadowColor = `rgba(220, 235, 255, 1)`;
-                this._strokePath(pts, coreW * 2.8, `rgba(210, 230, 255, ${a * (isDeep ? 0.5 : 0.75)})`);
-
-                // ── Capa 4: núcleo ultra-nítido blanco puro ──
-                rainCtx.shadowBlur = 4;
-                rainCtx.shadowColor = `rgba(255, 255, 255, 1)`;
-                rainCtx.lineJoin = 'miter';   // esquinas angulares nítidas
-                rainCtx.lineCap = 'butt';
-                this._strokePath(pts, coreW, `rgba(255, 255, 255, ${a})`);
             }
 
             draw() {
-                if (this.alpha <= 0.01) return;
-                rainCtx.save();
-                // Dibuja las ramas más profundas primero para que el rayo principal quede encima
-                for (let i = this.bolts.length - 1; i >= 0; i--) {
-                    this._drawBolt(this.bolts[i]);
+                if (this.size <= 0) return;
+
+                const relativeHeight = Math.max(0, this.y / height);
+                const currentAlpha = relativeHeight * this.alpha;
+
+                embersCtx.globalAlpha = currentAlpha;
+                embersCtx.fillStyle = this.color;
+
+                // Brasa principal
+                embersCtx.beginPath();
+                embersCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                embersCtx.fill();
+
+                // Resplandor falso simulado (muchísimo más rápido que shadowBlur)
+                if (this.size > 1.5) {
+                    embersCtx.globalAlpha = currentAlpha * 0.3;
+                    embersCtx.beginPath();
+                    embersCtx.arc(this.x, this.y, this.size * 2.5, 0, Math.PI * 2);
+                    embersCtx.fill();
                 }
-                rainCtx.restore();
             }
         }
 
         function init() {
-            raindrops = [];
-            lightnings = [];
-            for (let i = 0; i < rainCount; i++) {
-                raindrops.push(new RainParticle(true));
+            embersParticles = [];
+            for (let i = 0; i < embersCount; i++) {
+                embersParticles.push(new EmberParticle(true));
             }
         }
 
         function animate() {
             frameCount++;
-            rainCtx.clearRect(0, 0, width, height);
+            embersCtx.clearRect(0, 0, width, height);
+            embersCtx.globalAlpha = 1;
 
-            // Activador de rayo: solo después de 20 segundos de actividad en la página
-            const elapsed = Date.now() - pageStartTime;
-            if (elapsed > 20000 && Math.random() < 0.0004) {
-                const lt = new Lightning();
-                lightnings.push(lt);
-                screenFlashOpacity = 0.6;
-                screenFlashX = lt.originX;
-            }
-            // Degradado radial para iluminación del cielo
-            if (screenFlashOpacity > 0) {
-                const gx = typeof screenFlashX !== 'undefined' ? screenFlashX : width / 2;
-                const grad = rainCtx.createRadialGradient(gx, 0, 0, gx, 0, width * 0.85);
-                grad.addColorStop(0, `rgba(220, 235, 255, ${screenFlashOpacity})`);
-                grad.addColorStop(0.5, `rgba(180, 210, 255, ${screenFlashOpacity * 0.45})`);
-                grad.addColorStop(1, `rgba(100, 140, 255, 0)`);
-                rainCtx.fillStyle = grad;
-                rainCtx.fillRect(0, 0, width, height);
-                screenFlashOpacity -= Math.random() * 0.1 + 0.04;
-            }
-
-            // Rayos
-            lightnings = lightnings.filter(lt => !lt.done);
-            lightnings.forEach(lt => { lt.update(); lt.draw(); });
-
-            // Seguimiento de ojos: cada 3er fotograma
             if (frameCount % 3 === 0) updateEyes();
 
-            // Lluvia: actualiza posiciones y dibuja todo en una sola llamada en lote
-            raindrops.forEach(drop => drop.update());
-            drawRain();
+            embersCtx.globalCompositeOperation = "lighter";
+            embersParticles.forEach(ember => {
+                ember.update();
+                ember.draw();
+            });
+            embersCtx.globalCompositeOperation = "source-over";
         }
 
         // Inicia el bucle inmediatamente para el mejor rendimiento percibido
@@ -829,14 +651,13 @@
             });
         }
 
-        const cityBg = document.querySelector('.city-bg');
-        // Verificación previa de la imagen de la ciudad
-        const cityImg = new Image();
-        cityImg.src = 'ciudad.webp';
-        if (cityImg.complete) {
-            cityBg.classList.add('loaded');
+        const abyssBg = document.querySelector('.abyss-bg');
+        const abyssImg = new Image();
+        abyssImg.src = 'dark_bg.png';
+        if (abyssImg.complete) {
+            abyssBg.classList.add('loaded');
         } else {
-            cityImg.addEventListener('load', () => cityBg.classList.add('loaded'));
+            abyssImg.addEventListener('load', () => abyssBg.classList.add('loaded'));
         }
 
         function loop(timestamp) {
